@@ -1,5 +1,10 @@
 # SignNow Node.js Sample App
 
+[![Node.js](https://img.shields.io/badge/node-20_LTS-brightgreen)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/typescript-5-blue)](https://www.typescriptlang.org/)
+[![SignNow SDK](https://img.shields.io/badge/SignNow_SDK-3.2+-light)](https://www.npmjs.com/package/@signnow/api-client)
+[![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
+
 An Express 5 + TypeScript application demonstrating the SignNow API via the official [`@signnow/api-client`](https://www.npmjs.com/package/@signnow/api-client) package from npm.
 
 ## Quick Start
@@ -18,16 +23,16 @@ cp .env.example .env
 
 Edit `.env` and fill in your SignNow credentials:
 
-| Variable | Description |
-|---|---|
-| `SIGNNOW_API_HOST` | `https://api.signnow.com` (production) or sandbox URL |
-| `SIGNNOW_API_BASIC_TOKEN` | Base64 basic token from your SignNow API dashboard |
-| `SIGNNOW_API_USERNAME` | Your SignNow account email |
-| `SIGNNOW_API_PASSWORD` | Your SignNow account password |
-| `SIGNNOW_DOWNLOADS_DIR` | Where downloaded documents are cached (default `/tmp/signnow-downloads`) |
-| `SN_SIGNER_EMAIL` | Default embedded signer email |
-| `APP_BASE_URL` | Public base URL used in `redirect_uri` (default `http://localhost:8080`) |
-| `PORT` | HTTP port (default `8080`) |
+| Variable | Example | Description |
+|---|---|---|
+| `SIGNNOW_API_HOST` | `https://api.signnow.com` | Production or sandbox URL |
+| `SIGNNOW_API_BASIC_TOKEN` | `c2lnbk5vdy4...` | Base64 token from [API Dashboard](https://app.signnow.com/webapp/api-dashboard/keys) |
+| `SIGNNOW_API_USERNAME` | `you@example.com` | Your SignNow account email |
+| `SIGNNOW_API_PASSWORD` | `••••••` | Your SignNow account password |
+| `SIGNNOW_DOWNLOADS_DIR` | `/tmp/signnow-downloads` | Where downloaded documents are cached |
+| `SN_SIGNER_EMAIL` | `signer@example.com` | Default embedded signer email |
+| `APP_BASE_URL` | `http://localhost:8080` | Public base URL used in `redirect_uri` |
+| `PORT` | `8080` | HTTP port |
 
 ### 3. Run with Docker
 
@@ -41,13 +46,11 @@ docker run --env-file .env -p 8080:8080 nodejs-sample-app
 ```bash
 npm install
 npm run dev          # tsx watch — auto-reload on source change
-# or, for production-like:
+# or production-like:
 npm run build && npm start
 ```
 
 ### 5. Open a sample
-
-Navigate to `http://localhost:8080/samples/<SampleName>`, e.g.:
 
 ```
 http://localhost:8080/samples/EmbeddedSignerConsentForm
@@ -87,41 +90,29 @@ src/
   main.ts               Express bootstrap
   routing.ts            /samples/:name and /api/samples/:name dispatch
   sampleInterface.ts    SampleController contract
-  sampleRegistry.ts     eager-load samples at boot
+  sampleRegistry.ts     Eager-loads samples at boot
   settings.ts           zod-validated .env loader
   sdk/
-    sdkClient.ts        lazy-singleton authenticated ApiClient
+    sdkClient.ts        Lazy-singleton authenticated ApiClient
 samples/
   <SampleName>/
-    IndexController.ts  named-export class implementing SampleController
-    index.html          Thank-you / download UI
+    IndexController.ts  Named-export class implementing SampleController
+    index.html          UI served on GET /samples/<SampleName>
 static/                 Shared CSS, JS, images, error.html
 scripts/copy-html.mjs   Post-tsc step: copies HTML and PDF fixtures into dist/
 tests/                  Vitest smoke suite (40 tests)
 ```
-
-## SDK Coverage
-
-This app uses `@signnow/api-client` v3.2+, which ships TypeScript declarations and Promise-based request/response classes under per-module subpaths (`@signnow/api-client/api/template`, `/api/embeddedSending`, etc.). Every controller imports the request classes it needs and dispatches via `client.send<ResponseType>(request)`.
-
-### Known SDK v3.2.0 defects
-
-The published v3.2.0 `package.json` has typos (`"imoport"`, `"impoort"` instead of `"import"`) in the ESM `exports` conditions for three subpaths: `api/embeddedInvite`, `api/embeddedEditor`, `api/embeddedGroupInvite`. Controllers that use classes from those modules use a `createRequire` workaround to load via the `"require"` condition — see `samples/EmbeddedSignerConsentForm/IndexController.ts` for the pattern.
-
-The v3.2.0 type declaration for `DocumentInvitePostResponse` incorrectly maps `data[]` items to `{ link: string }`; the server actually returns `{ id, email, role_id, ... }`. Affected controllers correct this with a local `DocumentInvitePostResponseFixed` type.
-
-`DocumentGroupRecipientsPutRequest` is not wrapped by v3.2.0 (only `Get` is exported). Controllers that need to update DG recipients (e.g., some DG Sender samples) skip this step and let the embedded editor UI handle it. Documented in affected controllers.
 
 ## Routing
 
 | Method | Path | Handler |
 |---|---|---|
 | GET | `/` | 404 error page |
-| GET | `/samples` | HTML list of samples |
+| GET | `/samples` | HTML list of all samples |
 | GET | `/api/samples` | `{ samples: string[] }` |
-| GET | `/samples/:name` | Dispatch to `samples/<name>/IndexController.handleGet` |
-| POST | `/api/samples/:name` | Dispatch to `samples/<name>/IndexController.handlePost` |
-| GET | `/css/*`, `/js/*`, `/img/*`, `/fonts/*`, `/assets/*` | Shared static files |
+| GET | `/samples/:name` | `samples/<name>/IndexController.handleGet` |
+| POST | `/api/samples/:name` | `samples/<name>/IndexController.handlePost` |
+| GET | `/css/*`, `/js/*`, `/img/*`, etc. | Shared static files |
 
 Sample names must match `^[a-zA-Z0-9_]+$`. Anything else → 404. Sample discovery is by convention: any folder under `samples/` whose `IndexController.ts` exports a class implementing `SampleController` is loaded at boot by `sampleRegistry.ts`.
 
@@ -134,12 +125,8 @@ Sample names must match `^[a-zA-Z0-9_]+$`. Anything else → 404. Sample discove
    import type { SampleController } from "../../src/sampleInterface.js";
 
    export class IndexController implements SampleController {
-     async handleGet(req: Request, res: Response) {
-       /* ... */
-     }
-     async handlePost(req: Request, res: Response) {
-       /* ... */
-     }
+     async handleGet(req: Request, res: Response) { /* ... */ }
+     async handlePost(req: Request, res: Response) { /* ... */ }
    }
    ```
 3. Create `samples/MyNewSample/index.html`.
@@ -155,19 +142,30 @@ npm test
 ```
 
 40 smoke-level tests:
-- 3 settings defaults/overrides
+- 3 settings defaults / overrides
 - 6 routing layer (name regex, dispatch, 404 responses)
-- 24 registry (3 unit + 1 list of all samples + 20 per-sample module loads)
+- 24 registry (3 unit + 1 full sample list + 20 per-sample module loads)
 - 7 HTTP integration (root, unknown, invalid name, static CSS/img)
 
-Tests are smoke-level only: they confirm the Express app starts, routes dispatch to each sample's controller, and 404 pages render correctly. They do NOT exercise real SignNow API calls (those require live credentials).
+Tests confirm the app starts and each sample's controller loads correctly.
+They do **not** exercise real SignNow API calls (live credentials required).
 
-Additional helper scripts:
+Additional checks:
 
 ```bash
 npm run typecheck    # tsc --noEmit
 npm run lint         # eslint over src/, tests/, samples/
 ```
+
+## SDK Notes
+
+Known quirks in `@signnow/api-client` v3.2.0 that affect this codebase:
+
+**ESM export typos** — The published `package.json` has `"imoport"`/`"impoort"` instead of `"import"` in the `exports` conditions for `api/embeddedInvite`, `api/embeddedEditor`, and `api/embeddedGroupInvite`. Controllers importing from those paths use a `createRequire` workaround to load via the `"require"` condition. See `EmbeddedSignerConsentForm/IndexController.ts` for the pattern.
+
+**`DocumentInvitePostResponse.data[]` shape** — The type declaration maps items to `{ link: string }`, but the server returns `{ id, email, role_id, ... }`. Affected controllers use a local `DocumentInvitePostResponseFixed` type to correct this.
+
+**`DocumentGroupRecipientsPutRequest` missing** — Only the `Get` variant is exported. Controllers that need to update DG recipients skip this step and let the embedded editor UI handle it instead.
 
 ## Tech Stack
 
@@ -175,10 +173,15 @@ npm run lint         # eslint over src/, tests/, samples/
 - Express 5
 - `@signnow/api-client` 3.2.0+ (from npm)
 - `dotenv` + `zod` for `.env` loading and validation
-- `tsx` (dev), `tsc` (build), `scripts/copy-html.mjs` (post-build fixture copy)
+- `tsx` (dev), `tsc` (build)
 - Vitest + supertest (tests)
 - Docker: multi-stage `node:20-slim`
 
+## GitHub Copilot Extension
+
+Get AI-powered SignNow code suggestions in your IDE:
+[github.com/apps/signnow](https://github.com/apps/signnow) — start prompts with `@signnow`.
+
 ## License
 
-See repository root.
+See [LICENSE](./LICENSE).
